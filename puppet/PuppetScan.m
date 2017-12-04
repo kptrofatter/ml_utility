@@ -70,8 +70,7 @@ function [puppet] = PuppetScan(path)
         puppet.name = ScanString(fid, 'name');
         
         % initalize puppet pose
-        A = struct('M', eye(3), 'v', zeros(3, 1));
-        puppet.A = A;
+        puppet.A = Affine();
         
         % scan number of materials
         nmaterials = ScanNumber(fid, 'materials');
@@ -195,7 +194,7 @@ function [A] = ScanPose(fid)
     end
     
     % assign pose
-    A = struct('M', eye(3), 'v', zeros(3, 1));
+    A = Affine();
     A.M = [ ...
         data{1}, data{4}, data{7}; ...
         data{2}, data{5}, data{8}; ...
@@ -414,7 +413,7 @@ end
 function [bones] = ScanBones(fid, nbones, nmeshes)
     
     % allocate bones
-    A = struct('M', eye(3), 'v', zeros(3, 1));
+    A = Affine();
     bone = struct('name', '', 'parent', '', 'children', [], ...
         'A_rest', A, 'A', A, 'indices', [], 'weights', []);
     bones(nbones) = bone;

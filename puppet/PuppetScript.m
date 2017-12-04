@@ -41,10 +41,10 @@ anim_path   = [folder.trial, 'animation.txt'];
 save_path   = [folder.trial, 'recon']; % output image *.mat base path
 
 % puppet
-sim_delta = 0.007; % [m]
-kinect_delta = 0.02; % [m]
-stitch_delta = 0.01; % [m]
-stitch_profile = 0.02; % [m]
+delta_kinect = 0.020; % [m] lowest fidelity
+delta_stitch = 0.010; % [m] medium fidelity
+delta_sim    = 0.007; % [m] highest fidelety
+profile_stitch = [0.02, 0.04]; % [m] stitch cactus profile
 
 % simkinect
 point_size = 0.01;
@@ -52,11 +52,11 @@ point_size = 0.01;
 % frames
 frame_start = 30;
 frame_step = 1;
-frame_end = 89;
+frame_end = 100;
 
 % gif
 gif_base    = [folder.trial, 'out'];
-gif_delay   = [0.1, 2.0];
+gif_delay   = [0.0333, 2.0];
 
 % vertical kinect
 camera(1).device = 'k1';
@@ -74,12 +74,13 @@ camera(2).A_ik.M = [...
 camera(2).A_ik.v = [-0.014288801; +0.062099980; -0.052768100];
 
 % stitch volume
-stitch_space = Space();
-stitch_space = SpacePitch(stitch_space ,[0.01 ; 0.01; 0.01]); % [m]
-% slinky
-%stitch_space = SpaceExtent(stitch_space,[-0.15, 0.15; -0.15, 0.15; -0.1, 1.1]); % [m]
-% man
-stitch_space = SpaceExtent(stitch_space,[-0.65, 0.65; -0.2, 0.3; -0.05, 1.9]); % [m]
+stitch_space = Space('R3');
+pitch = [0.01 , 0.01, 0.01]; % [m]
+%extent = [-0.15, 0.15; -0.15, 0.15; -0.1, 1.1]; % [m] slinky
+extent = [-0.7, 0.7; -0.2, 0.3; -0.15, 1.9]; % [m] male
+stitch_space = SpaceSet(stitch_space, 'Extent', extent, 'Pitch', pitch);
+
+clear extent pitch
 
 %% Align Imager ================================================== [DO NOT EDIT]
 % scan to creaform
@@ -185,44 +186,43 @@ clear data
 puppet = PuppetScan(puppet_path);
 anim   = PuppetAnimScan(anim_path);
 
-% build sim puppet
+% build kinect puppet (lowest fidelity puppet)
+fprintf('Building kinect puppet...\n');
+puppet = PuppetVisibility(puppet, [1, 0, 1, 0]); % body and gun
+puppet = PuppetRefine(puppet, delta_kinect);
+kinect_puppet = puppet;
+
+% build stitch puppet (medium fidelity puppet)
+fprintf('Building stitch puppet...\n');
+puppet = PuppetRefine(puppet, delta_stitch);
+puppet = PuppetVisibility(puppet, [1, 0, 0, 0]); % body only
+stitch_puppet = PuppetCactus(puppet, profile_stitch);
+
+% build sim puppet (high fidelity puppet)
 fprintf('Building simulation puppet...\n');
-sim_puppet = PuppetVisibility(puppet, [1, 0, 1, 0]); % body and gun
-sim_puppet = PuppetRefine(sim_puppet, sim_delta);
+puppet = PuppetVisibility(puppet, [1, 0, 1, 0]); % body and gun
+sim_puppet = PuppetRefine(puppet, delta_sim);
 
 % get sim puppet reflectivity and faces
 sigma = PuppetGet(sim_puppet, '#reflectivity');
 faces = PuppetGet(sim_puppet, 'faces');
 faces = int32(faces);
 
-% build kinect puppet
-fprintf('Building kinect puppet...\n');
-kinect_puppet = PuppetVisibility(puppet, [1, 0, 1, 0]); % body and gun
-kinect_puppet = PuppetRefine(kinect_puppet, kinect_delta);
-
-% build stitch puppet
-fprintf('Building stitch puppet...\n');
-stitch_puppet = PuppetVisibility(puppet, [1, 0, 0, 0]); % body only
-stitch_puppet = PuppetRefine(stitch_puppet, stitch_delta);
-stitch_puppet = PuppetCactus(stitch_puppet, stitch_profile);
-
 % map stitch puppet vertices to stitch indices (does not clip indices!)
 Rs = PuppetGet(stitch_puppet, 'vertices');
 fprintf('Mapping puppet to stitch space... ');
-Rsi = Raster(stitch_space, Rs);
+Rsi = Raster(Rs, stitch_space);
 fprintf('[Done]\n');
-
-% initate stitch
-stitch = zeros(stitch_space.size.');
 
 % global playback structure
 global PLAYBACK
 nframes = numel(anim.A);
 PLAYBACK.nframes = nframes;
 
-clear puppet
-
 %% Run Simulation ================================================ [DO NOT EDIT]
+% initate stitch
+stitch = zeros(stitch_space.count);
+% run
 for frame = frame_start : frame_step : frame_end
     
 %% Deform Puppet ================================================= [DO NOT EDIT]
@@ -353,9 +353,13 @@ for frame = frame_start : frame_step : frame_end
         fh = gobjects(1, 6);
     end
     
+    % stupid figure offset nonsense
+    poop = 900;
+    poop_extent = [-0.25, +2.00, -1.25, +1.00, -1.25, +1.25];
+    
     % scene figure -------------------------------------------------------------
     if ~isgraphics(fh(1))
-        fh(1) = MiFigure(1, [], [], [25, 1400-900, 420, 400]);
+        fh(1) = MiFigure(1, [], [], [25, 1400-poop, 420, 400]);
     end
     clf(fh(1));
     ah = MiAxes(fh(1));
@@ -374,7 +378,7 @@ for frame = frame_start : frame_step : frame_end
     % format
     grid(ah, 'on');
     axis(ah, 'equal');
-    axis(ah, [-0.25, +2.00, -1.25, +1.00, -1.25, +1.25]);
+    axis(ah, poop_extent);
     view(ah, [45, 45]);
     % notate
     title(ah, sprintf('Simulation Frame %i', frame));
@@ -383,7 +387,7 @@ for frame = frame_start : frame_step : frame_end
     % simkinect figure ---------------------------------------------------------
     for i = 1 : numel(camera)
         if ~isgraphics(fh(i + 1))
-            fh(i + 1) = MiFigure(i + 1, [], [], [460, 1400-900, 420, 400]);
+            fh(i + 1) = MiFigure(i + 1, [], [], [460, 1400-poop, 420, 400]);
         end
         clf(fh(i + 1));
         ah = MiAxes(fh(i + 1));
@@ -401,14 +405,10 @@ for frame = frame_start : frame_step : frame_end
 
     % roi figure ---------------------------------------------------------------
     if ~isgraphics(fh(4))
-        fh(4) = MiFigure(4, [], [], [25, 950-900, 420, 400]);
+        fh(4) = MiFigure(4, [], [], [25, 950-poop, 420, 400]);
     end
     clf(fh(4));
     ah = MiAxes(fh(4));
-    % draw target
-%     hold(ah, 'on');
-%     scatter3(ah, R(1, :), R(2, :), R(3, :), 5, 'Filled');
-%     hold(ah, 'off');
     % colormap
     colormap([0.0, 1.0, 0.0]);
     % draw roi
@@ -424,7 +424,7 @@ for frame = frame_start : frame_step : frame_end
     % format
     grid(ah, 'on');
     axis(ah, 'equal');
-    axis(ah, [-0.25, +1.50, -1.25, +1.00, -1.25, +1.25]);
+    axis(ah, poop_extent);
     view(ah, [-90, 0]);
     % notate
     title(ah, sprintf('Roi Frame %i', frame));
@@ -432,7 +432,7 @@ for frame = frame_start : frame_step : frame_end
     
     % recon figure -------------------------------------------------------------
     if ~isgraphics(fh(5))
-        fh(5) = MiFigure(5, [], [], [460, 950-900, 420, 400]);
+        fh(5) = MiFigure(5, [], [], [460, 950-poop, 420, 400]);
     end
     clf(fh(5));
     ah = MiAxes(fh(5));
@@ -445,7 +445,7 @@ for frame = frame_start : frame_step : frame_end
     % format
     grid(ah, 'on');
     axis(ah, 'equal');
-    axis(ah, [-0.25, +1.50, -1.25, +1.00, -1.25, +1.25]);
+    axis(ah, poop_extent);
     view(ah, [-90, 0]);
     % notate
     title(ah, sprintf('%s Frame %i', recon.algorithm, frame));
@@ -453,7 +453,7 @@ for frame = frame_start : frame_step : frame_end
     
     % stitch figure ------------------------------------------------------------
     if ~isgraphics(fh(6))
-        fh(6) = MiFigure(6, [], [], [460, 950-900, 420, 400]);
+        fh(6) = MiFigure(6, [], [], [460, 950-poop, 420, 400]);
     end
     clf(fh(6));
     ah = MiAxes(fh(6));
@@ -480,10 +480,10 @@ for frame = frame_start : frame_step : frame_end
         [gif_base, '_stitch.gif'  ]};
     
     for i = 1 : numel(fh)
-        if frame == 1
+        if frame == frame_start
             % first frame
             Gif(fh(i), gif_path{i}, gif_delay(1), inf());
-        elseif frame ~= nframes
+        elseif frame ~= frame_end
             % middle frames
             Gif(fh(i), gif_path{i}, gif_delay(1));
         else

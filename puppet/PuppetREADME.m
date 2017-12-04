@@ -50,30 +50,30 @@ verts  = PuppetGet(puppet, 'vertices');
 sigma  = PuppetGet(puppet, 'reflectivity');
 
 % draw
-[ah, ~] = PuppetDraw([], puppet, 'reflectivity');
+[~, ah] = PuppetDraw([], puppet, 'reflectivity');
 title(ah, 'Puppet');
 
 % hide puppet body mesh
 hidden = PuppetVisibility(puppet, [0, 1, 1, 1]);
-[ah, ~] = PuppetDraw([], hidden);
+[~, ah] = PuppetDraw([], hidden);
 title(ah, 'Hidden');
 
 % change puppet material
 mutant = puppet;
 mutant.materials(5).duke.reflectivity = 0.1;
 mutant = PuppetSample(mutant);
-[ah, ~] = PuppetDraw([], mutant, 'reflectivity', 'nfb');
-title(ah, 'Mutant');
+[~, ah] = PuppetDraw([], mutant, 'reflectivity', 'nfb');
 colorbar('peer', ah);
+title(ah, 'Mutant');
 
 % grow cactus hairs on puppet
 cactus = PuppetCactus(puppet, [-0.02, 0.02]);
-[ah, ~] = PuppetDraw([], cactus);
+[~, ah] = PuppetDraw([], cactus);
 title(ah, 'Cactus');
 
 % refine puppet geometry
 refine = PuppetRefine(puppet, 0.03);
-[ah, ~] = PuppetDraw([], refine);
+[~, ah] = PuppetDraw([], refine);
 title(ah, 'Refine');
 
 
@@ -99,7 +99,7 @@ title(ah, 'Refine');
 % [puppet] = PuppetVisibility(puppet, flags) % set mesh visibility flags quickly
 
 % draw
-% [ah, gh] = PuppetDraw(ah, puppet, name, mask, alpha) % draw puppet to an axis
+% [gh, ah] = PuppetDraw(ah, puppet, name, mask, alpha) % draw puppet to an axis
 
 
 % global variables ============================================================%

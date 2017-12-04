@@ -6,7 +6,7 @@
 % PuppetDraw() - draws a puppet name and visible meshes, bone bases, and faces.
 %
 % USAGE:
-%   [ah, gh] = PuppetDraw(ah, puppet, name=[], mask='nvefb', alpha=0.2)
+%   [gh, ah] = PuppetDraw(ah, puppet, name=[], mask='nvefb', alpha=0.2)
 %
 % INPUT:
 %   [1,1] axes    | ah        | axes handle
@@ -16,14 +16,14 @@
 %   [1,1] double  | alpha     | mesh face alpha
 %
 % OUTPUT:
-%   [1,1] axes    | ah        | axes handle
 %   [1,1] struct  | gh        | puppet graphics handle structure
 %   [1,1] text    | .text     | puppet name text
 %   [1,?] scatter | .scatters | puppet mesh vertex scatters
 %   [1,?] patch   | .patches  | puppet mesh patches
 %   [3,?] quiver  | .quivers  | puppet bone basis quivers
+%   [1,1] axes    | ah        | axes handle
 
-function [ah, gh] = PuppetDraw(ah, puppet, name, mask, alpha)
+function [gh, ah] = PuppetDraw(ah, puppet, name, mask, alpha)
     
     % status
     fprintf('Drawing puppet ''%s''... ', puppet.name);
@@ -31,8 +31,10 @@ function [ah, gh] = PuppetDraw(ah, puppet, name, mask, alpha)
     % default axes
     if isempty(ah)
         fh = figure();
-        fh.Position(3 : 4) = [675, 800];
         ah = axes('Parent', fh);
+        format = true();
+    else
+        format = false();
     end
     
     % default property name
@@ -153,12 +155,12 @@ function [ah, gh] = PuppetDraw(ah, puppet, name, mask, alpha)
     % draw end
     hold(ah, 'off');
     
-    % default axis
-    if exist('fh', 'var')
+    % format axis
+    if format
         axis(ah, 'equal');
         axis(ah, 'tight');
         grid(ah, 'on');
-        view(ah, [-45, 20]);
+        view(ah, [-45.0, 20.0]);
         xlabel(ah, 'x[m]');
         ylabel(ah, 'y[m]');
         zlabel(ah, 'z[m]');

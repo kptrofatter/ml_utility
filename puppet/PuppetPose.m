@@ -29,8 +29,7 @@ function [puppet] = PuppetPose(puppet, animation, frame)
         fprintf('rest pose... ');
         
         % puppet pose
-        A = struct('M', eye(3), 'v', zeros(3, 1));
-        puppet.A = A;
+        puppet.A = Affine();
         
         % mesh poses
         for i = 1 : numel(puppet.meshes)

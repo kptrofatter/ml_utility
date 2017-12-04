@@ -40,7 +40,7 @@ function [animation] = PuppetAnimScan(path)
     try
         
         % allocate animation
-        A = struct('M', eye(3), 'v', zeros(3, 1));
+        A = Affine();
         animation = struct('name', '', 'puppet', '', 'A', A, ...
             'meshes', [], 'bones', []);
         
@@ -115,8 +115,7 @@ function [poses] = ScanPose(fid, nframes)
     end
     
     % allocate poses
-    A = struct('M', eye(3), 'v', zeros(3, 1));
-    poses(nframes) = A;
+    poses = Affine(nframes);
     
     % assign poses
     for i = 1 : nframes
@@ -133,10 +132,10 @@ end
 function [tracks] = ScanTrack(fid, type, ntracks, nframes)
     
     % allocate tracks
-    A = struct('M', eye(3), 'v', zeros(3, 1));
+    A = Affine();
     track = struct('name', '', 'A', A);
-    track.A(nframes) = A;
-    tracks(ntracks) = track;
+    track.A(1 : nframes) = A;
+    tracks(1 : ntracks) = track;
     
     % scan meshes
     for i = 1 : ntracks

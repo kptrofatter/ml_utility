@@ -40,13 +40,13 @@ function [puppet] = PuppetDeform(puppet)
             vertices = Skd(puppet, mesh);
             
             % mesh to puppet space
-            vertices = Affine(mesh.A, vertices);
+            vertices = AffineXform(mesh.A, vertices);
             
             % skeltal subspace deformation
             vertices = Ssd(puppet, vertices, i);
             
             % puppet to world space
-            vertices = Affine(puppet.A, vertices);
+            vertices = AffineXform(puppet.A, vertices);
             
             % assign result
             puppet.meshes(i).vertices = vertices;
@@ -150,7 +150,8 @@ function [x] = Ssd(puppet, vertices, imesh)
         indices = puppet.bones(i).indices{imesh};
         w = weights(i, indices);
         w = repmat(w, [3, 1]);
-        x(:, indices) = x(:, indices) + w .* Affine(A(i), vertices(:, indices));
+        x(:, indices) = ...
+            x(:, indices) + w .* AffineXform(A(i), vertices(:, indices));
     end
     
 end
