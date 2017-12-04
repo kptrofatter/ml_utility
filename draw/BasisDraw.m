@@ -1,72 +1,104 @@
 % %============================================================================%
-% % MetaImager                                                                 %
-% %                                                                            %
-% % imager/draw/BasisDraw.m                                                    %
+% % Duke University                                                            %
+% % K. P. Trofatter                                                            %
+% % kpt2@duke.edu                                                              %
 % %============================================================================%
 % BasisDraw() - draws a coordinate basis defined by an affine transformation.
 %
 % USAGE:
-%   [h] = BasisDraw(ah = gca(), A, scale = 0.1, width = 1.0)
+%   [quivers, ah] = BasisDraw(ah, A, scale=1.0, width=1.0)
 %
 % INPUT:
-%   [1,1] axes   | ah    | axis handle
-%   [m,1] struct | A     | affine transformation
-%   [3,3] double | .M    | [#] transformation matrix
-%   [3,1] double | .v    | [m] translation vector
-%   [1,1] double | scale | unit vector scale factor
-%   [1,1] double | width | unit vector width
+%   [1,1] axes   | ah      | axes handle
+%   [1,n] struct | A       | affine transformation
+%   [3,3] double | .M      | [#] transformation matrix
+%   [3,1] double | .v      | [m] translation vector
+%   [1,1] double | scale   | unit vector scale factor
+%   [1,1] double | width   | unit vector line width
 %
 % OUTPUT:
-%   [3,1] quiver | h     | graphics handle
+%   [1,3] quiver | quivers | quiver graphic handles
+%   [1,1] axes   | ah      | axes handle
 
-function [h] = BasisDraw(ah, A, scale, width)
-    % null
-    if ~exist('A', 'var') || isempty(A)
-        h = [];
-        return
-    end
+function [quivers, ah] = BasisDraw(ah, A, scale, width)
+    
     % default axis
     if ~exist('ah', 'var') || isempty(ah)
-        ah = gca();
+        fh = figure();
+        ah = axes('Parent', fh);
+        format = true();
+    else
+        format = false();
     end
+    
+    % return if no bases given
+    if ~exist('A', 'var') || isempty(A)
+        quivers = [];
+        return
+    end
+    
     % default scale
     if ~exist('scale', 'var') || isempty(scale)
-        scale = 0.1;
+        scale = 1.0;
     end
+    
     % default width
     if ~exist('width', 'var') || isempty(width)
         width = 1.0;
     end
     
-    % allocate
-    o = zeros(3, numel(A));
+    % allocate bases points
+    nxforms = numel(A);
+    o = zeros(3, nxforms);
     x = o;
     y = o;
     z = o;
-    % construct basis
-    for i = 1 : numel(A)
+    
+    % construct bases
+    for i = 1 : nxforms
         o(:, i) = A(i).v;
         x(:, i) = scale * A(i).M(:, 1);
         y(:, i) = scale * A(i).M(:, 2);
         z(:, i) = scale * A(i).M(:, 3);
     end
     
-    % draw
+    % draw begin
     hold(ah, 'on');
-    % x-axis
-    h(1) = quiver3(ah, o(1, :), o(2, :), o(3, :), x(1, :), x(2, :), x(3, :), 0,...
-        'Color', [1.0, 0.0, 0.0],...
+    
+    % x axis
+    quivers(1) = ...
+        quiver3(ah, o(1, :), o(2, :), o(3, :), x(1, :), x(2, :), x(3, :), 0, ...
+        'Color', 'r', ...
         'LineWidth', width);
-    % y-axis
-    h(2) = quiver3(ah, o(1, :), o(2, :), o(3, :), y(1, :), y(2, :), y(3, :), 0,...
-        'Color',[0.0, 1.0, 0.0],...
+    
+    % y axis
+    quivers(2) = ...
+        quiver3(ah, o(1, :), o(2, :), o(3, :), y(1, :), y(2, :), y(3, :), 0, ...
+        'Color', 'g', ...
         'LineWidth', width);
-    % z-axis
-    h(3) = quiver3(ah, o(1, :), o(2, :), o(3, :), z(1, :), z(2, :), z(3, :), 0,...
-        'Color', [0.0, 0.0, 1.0],...
+    
+    % z axis
+    quivers(3) = ...
+        quiver3(ah, o(1, :), o(2, :), o(3, :), z(1, :), z(2, :), z(3, :), 0, ...
+        'Color', 'b', ...
         'LineWidth', width);
+    
+    % draw end
     hold(ah, 'off');
+    
+    % format axis
+    if format
+        axis(ah, 'equal');
+        axis(ah, 'tight');
+        grid(ah, 'on');
+        view(ah, [-45.0, 20.0]);
+        xlabel(ah, 'x[m]');
+        ylabel(ah, 'y[m]');
+        zlabel(ah, 'z[m]');
+    end
+    
 end
+
 
 %==============================================================================%
 %                                                                              %

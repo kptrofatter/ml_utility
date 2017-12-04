@@ -1,25 +1,44 @@
 % %============================================================================%
-% %                                                                            %
-% %                                                                            %
-% % math\Affine.m                                                              %
+% % Duke University                                                            %
+% % K. P. Trofatter                                                            %
+% % kpt2@duke.edu                                                              %
 % %============================================================================%
-% AFFINE applies an affine transformation to a matrix of column vectors.
+% Affine() - creates an identity affine transformation structure.
 %
 % USAGE:
-%   [b] = Affine(A_ba, a)
+%   [A] = Affine(n=1, d=3)
 %
 % INPUT:
-%   [1,1] struct | A_ba | affine transformation structure
-%   [n,n] double | .M   | transformation matrix
-%   [n,1] double | .v   | translation vector
-%   [n,m] double | a    | matrix of column vectors to transform
+%   [1,1] double | n    | [#] number of elements
+%   [1,1] double | d    | [#] vectorspace dimension
 %
 % OUTPUT:
-%   [n,m] double | b    | matrix of transformed vectors
+%   [1,1] struct | A    | affine transformation structure
+%   [d,d] double | .M   | transformation matrix
+%   [d,1] double | .v   | translation vector
+%
+% NOTE:
+%   The choice of transformation representation and computation is based on the
+%   experimental space and time complexity of four different implementations,
+%   including homogenerous coordinates representations.
 
-function [b] = Affine(A_ba, a)
-    b = A_ba.M * a + repmat(A_ba.v, [1, size(a, 2)]);
+function [A] = Affine(n, d)
+    
+    % default n
+    if ~exist('n', 'var') || isempty(n)
+        n = 1;
+    end
+    
+    % default d
+    if ~exist('d', 'var') || isempty(d)
+        d = 3;
+    end
+    
+    % allocate and initialize
+    A(1 : n) = struct('M', eye(d), 'v', zeros(d, 1));
+    
 end
+
 
 %==============================================================================%
 %                                                                              %
