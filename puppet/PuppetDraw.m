@@ -112,7 +112,7 @@ function [gh, ah] = PuppetDraw(ah, puppet, name, mask, alpha)
                     
                     % property-based color
                     data = mesh.duke.(name);
-                    C = data(mesh.faces);
+                    C = double(data(mesh.faces));
                     
                 end
                 

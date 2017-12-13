@@ -38,7 +38,7 @@ function [A_ba, epsilon] = Procrustes(b, a)
     A_ba.v = b(:, 1) - A_ba.M * a(:, 1);
     
     % compute epsilon
-    C = b - AffineXform(A_ba.M, a);
+    C = b - AffineXform(A_ba, a);
     epsilon = sqrt(sum(C(:).^2));
     
 end

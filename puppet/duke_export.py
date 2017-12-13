@@ -242,7 +242,7 @@ class DukeExportButton(bpy.types.Operator):
                 f.write('-1 ')
                 
             # write delimiter
-            f.write(',')
+            f.write(', ')
             
             # write (global) material index
             name = materials[face.material_index].name

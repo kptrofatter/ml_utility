@@ -6,6 +6,7 @@
 % TODO:
 %   + add faces to simkinect for constructing room efficiently
 %   + maybe rewrite evolv ZBuffer()? decouples reweight of sigma for density...
+%   + fix cactus and refine so they type cast geometry properties
 
 %% Environment =================================================================
 clear();
@@ -58,72 +59,138 @@ frame_end = 100;
 gif_base    = [folder.trial, 'out'];
 gif_delay   = [0.0333, 2.0];
 
-% vertical kinect
-camera(1).device = 'k1';
-camera(1).A_ik.M = [...
-    +0.127320117, +0.166172290, +0.977842705; ...
-    -0.007635183, -0.985672591, +0.168497023; ...
-    +0.991832290, -0.028919069, -0.124227194];
-camera(1).A_ik.v = [-0.021992248; -0.446040039; +0.141695780];
-% horizontal kinect
-camera(2).device = 'k1';
-camera(2).A_ik.M = [...
-    +0.010608515, -0.001881171, +0.999941958; ...
-    +0.999943706, -0.000186968, -0.010608885; ...
-    +0.000206914, +0.999998213, +0.001879082];
-camera(2).A_ik.v = [-0.014288801; +0.062099980; -0.052768100];
+% camera
+clear camera
+switch 'simulated'
+case 'measured'
+    % vertical kinect
+    camera(1).device = 'k1';
+    camera(1).A_ik.M = [...
+        +0.127320117, +0.166172290, +0.977842705; ...
+        -0.007635183, -0.985672591, +0.168497023; ...
+        +0.991832290, -0.028919069, -0.124227194];
+    camera(1).A_ik.v = [-0.021992248; -0.446040039; +0.141695780];
+    % horizontal kinect
+    camera(2).device = 'k1';
+    camera(2).A_ik.M = [...
+        +0.010608515, -0.001881171, +0.999941958; ...
+        +0.999943706, -0.000186968, -0.010608885; ...
+        +0.000206914, +0.999998213, +0.001879082];
+    camera(2).A_ik.v = [-0.014288801; +0.062099980; -0.052768100];
+    
+case 'simulated'
+    kinect_puppet = PuppetScan([folder.study, 'male\kinect_puppet.txt']);
+    kinect_anim = PuppetAnimScan([folder.study, 'male\kinect_animation.txt']);
+    kinect_puppet = PuppetPose(kinect_puppet, kinect_anim, 1);
+    nbones = numel(kinect_puppet.bones);
+    camera(1, nbones) = struct('device', '', 'A_ik', Affine());
+    for i = 1 : nbones
+        camera(i).device = 'k1';
+        camera(i).A_ik = kinect_puppet.bones(i).A;
+    end
+    
+end
 
 % stitch volume
 stitch_space = Space('R3');
 pitch = [0.01 , 0.01, 0.01]; % [m]
-%extent = [-0.15, 0.15; -0.15, 0.15; -0.1, 1.1]; % [m] slinky
 extent = [-0.7, 0.7; -0.2, 0.3; -0.15, 1.9]; % [m] male
 stitch_space = SpaceSet(stitch_space, 'Extent', extent, 'Pitch', pitch);
 
 clear extent pitch
 
-%% Align Imager ================================================== [DO NOT EDIT]
-% scan to creaform
-[align.A_cs, align.A_co, align.index, align.scans, align.epsilon] = AlignImager(...
-    align.tPath,...
-    align.mPath,...
-    align.sPath,...
-    align.cFile,...
-    align.codes,...
-    align.radii);
+%% Build Imager ================================================== [DO NOT EDIT]
+switch align.type
+case 'creaform'
+    
+    % load creaform photogrammetry data
+    creaform = CreaformScan(align.creaform_path);
+    
+    % load align library files
+    library = FileList(align.library_path);
+    
+    % align
+    [align.A_co, align.names, align.epsilons] = ...
+        CreaformAlign(creaform, library, align.codes, align.radii, 2.0e-3);
+    
+case 'blender'
+    
+    % load blender data
+    imager_puppet    = PuppetScan    ([align.imager_path, 'puppet.txt'   ]);
+    imager_animation = PuppetAnimScan([align.imager_path, 'animation.txt']);
+    
+    % pose imager (posing it here assumes it is not animated...)
+    imager_puppet = PuppetPose(imager_puppet, imager_animation, 1);
+    
+    % allocate poses and names
+    nbones = numel(imager_puppet.bones);
+    align.names = cell(1, nbones);
+    align.A_co = Affine(nbones);
+    
+    % extract poses and names
+    for i = 1 : nbones
+        
+        % extract pose
+        A = imager_puppet.bones(i).A; % puppet <- bone
+        A = AffineCompose(imager_puppet.A, A); % imager <- puppet
+        align.A_co(i) = A;
+        
+        % extract name
+        name = imager_puppet.bones(i).name;
+        
+        % test for and remove instance suffix
+        if numel(name)>=4 && name(end - 3)=='_' && IsDec(name(end - 2 : end))
+            name(end - 3 : end) = [];
+        end
+        
+        % assign name
+        align.names{i} = name;
+        
+    end
+    
+    % dummy epsilons
+    align.epsilons = zeros(1, nbones);
+    
+end
 
-% creaform to imager
+% prune modules (they help find the antennas, but they have no scan)
+nposes = numel(align.A_co);
+indices = true(1, nposes);
+for i = 1 : nposes
+    if ~isempty(strfind(align.names{i}, 'module'))
+        indices(i) = false();
+    end
+end
+align.A_co = align.A_co(indices);
+align.names = align.names(indices);
+align.epsilons = align.epsilons(indices);
+
+% define imager basis (relative to creaform basis)
 align.A_ic = AffineInverse(align.A_co(align.originIndex));
 
-%% Build Imager ================================================== [DO NOT EDIT]
-% tx antennas
-ant.tx = cell(1, numel(align.txIndex));
-% load
-for i = 1 : numel(align.txIndex)
-    ant.tx{i} = load([align.sPath, align.scans{align.txIndex(i)}]);
+% build antennas
+nposes = numel(align.A_co);
+ants = cell(1, nposes);
+for i = 1 : nposes
+    
+    % load
+    ants{i} = load([align.scan_path, align.names{i}, '.mat']);
+    
+    % compute pose
+    A = AffineCompose(ants{i}.A_or, ants{i}.A_rs); % optical <- rf <- scan
+    A = AffineCompose(align.A_co(i), A); % creaform <- optical
+    A = AffineCompose(align.A_ic, A); % imager <- creaform
+    
+    % pose
+    ants{i} = panel_pose(ants{i}, A.v, A.M);
+    
 end
-% pose
-ant.tx = AntennaPose(ant.tx, AffineCompose(align.A_ic, align.A_cs(align.txIndex)));
 
-% rx antennas
-ant.rx = cell(1, numel(align.rxIndex));
-% load
-for i = 1 : numel(align.rxIndex)
-    ant.rx{i} = load([align.sPath, align.scans{align.rxIndex(i)}]);
-end
-% pose
-ant.rx = AntennaPose(ant.rx, AffineCompose(align.A_ic, align.A_cs(align.rxIndex)));
+% assign to tx and rx
+ant.tx = ants(align.txIndex);
+ant.rx = ants(align.rxIndex);
 
-% sx antennas
-ant.sx = cell(1, numel(align.sxIndex));
-% load
-for i = 1 : numel(align.sxIndex)
-    ant.sx{i} = load([align.sPath, align.scans{align.sxIndex(i)}]);
-end
-% pose
-ant.sx = AntennaPose(ant.sx, AffineCompose(align.A_ic, align.A_cs(align.rxIndex)));
-
-clear i
+clear i creaform d library nbones A name ants nposes indices
 
 %% Build Operator ================================================ [DO NOT EDIT]
 [recon, ant] = OperatorInitiate(recon, select, ant);
@@ -137,11 +204,11 @@ try
     if strcmp(operator, 'dipoles+H')
         % Dipoles+H
         H = recon.H; %#ok<NASGU>
-        save([folder.data, 'operator.mat'], 'select', 'space', 'operator', 'H', '-v7.3');
+        save([folder.study, 'operator.mat'], 'select', 'space', 'operator', 'H', '-v7.3');
     else
         % Lookup+APB
         apb = recon.apb; %#ok<NASGU>
-        save([folder.data, 'operator.mat'], 'select', 'space', 'operator', 'apb', '-v7.3');
+        save([folder.study, 'operator.mat'], 'select', 'space', 'operator', 'apb', '-v7.3');
     end
     fprintf('Operator saved\n');
 catch
@@ -190,7 +257,7 @@ anim   = PuppetAnimScan(anim_path);
 fprintf('Building kinect puppet...\n');
 puppet = PuppetVisibility(puppet, [1, 0, 1, 0]); % body and gun
 puppet = PuppetRefine(puppet, delta_kinect);
-kinect_puppet = puppet;
+roi_puppet = puppet;
 
 % build stitch puppet (medium fidelity puppet)
 fprintf('Building stitch puppet...\n');
@@ -220,8 +287,11 @@ nframes = numel(anim.A);
 PLAYBACK.nframes = nframes;
 
 %% Run Simulation ================================================ [DO NOT EDIT]
-% initate stitch
+% initate stitch and coverage
 stitch = zeros(stitch_space.count);
+sim_puppet = PuppetCoverage(sim_puppet);
+ratios = zeros(1, numel(frame_start : frame_step : frame_end));
+iratio = 1;
 % run
 for frame = frame_start : frame_step : frame_end
     
@@ -234,8 +304,8 @@ for frame = frame_start : frame_step : frame_end
     R = PuppetGet(sim_puppet, 'vertices');
     
     % pose and deform kinect puppet
-    kinect_puppet = PuppetPose(kinect_puppet, anim, frame);
-    Rk = PuppetGet(kinect_puppet, 'vertices');
+    roi_puppet = PuppetPose(roi_puppet, anim, frame);
+    Rk = PuppetGet(roi_puppet, 'vertices');
     
     % pose and deform stitch puppet
     stitch_puppet = PuppetPose(stitch_puppet, anim, frame);
@@ -317,7 +387,10 @@ for frame = frame_start : frame_step : frame_end
     fprintf('  Reconstructing (%s)...\n', recon.algorithm);
     recon = Reconstruct(recon, select, ant, signal, roi);
     
-%% Stitch ======================================================== [DO NOT EDIT]
+%% Stitch ======================================================== [DO NOT EDIT]    
+    % initiate coverage
+    img = zeros(recon.space.count);    
+    
     if ~isempty(recon.image)
         
         % sample points (imaging volume)
@@ -342,15 +415,23 @@ for frame = frame_start : frame_step : frame_end
             end
         end
         
+        % prepare image for coverage computation (lazy way to do it...)
+        img(roi.voxel.ihull(1,1):roi.voxel.ihull(1,2),...
+            roi.voxel.ihull(2,1):roi.voxel.ihull(2,2),...
+            roi.voxel.ihull(3,1):roi.voxel.ihull(3,2)) = recon.image;
     end
     
-    clear idelta Xs Ys Zs Xq Yq Zq Rq i
+    [sim_puppet, ratio] = PuppetCoverage(sim_puppet, img, recon.space);
+    ratios(iratio) = ratio;
+    iratio = iratio + 1;
+    
+    clear idelta Xs Ys Zs Xq Yq Zq Rq i img
 
 %% Draw Simulation =============================================== [DO NOT EDIT]
     fprintf('  Drawing simulation...\n');
     % figure handles
     if ~exist('fh', 'var')
-        fh = gobjects(1, 6);
+        fh = gobjects(1, 7);
     end
     
     % stupid figure offset nonsense
@@ -365,7 +446,7 @@ for frame = frame_start : frame_step : frame_end
     ah = MiAxes(fh(1));
     colormap('parula');
     % draw simulation puppet
-    [ah, ~] = PuppetDraw(ah, kinect_puppet, 'reflectivity', 'f');
+    [gh, ah] = PuppetDraw(ah, sim_puppet, 'reflectivity', 'f');
     % draw antennas
     DrawAntenna(ant.tx, [0.0, 1.0, 0.0], 0.4, ah);
     DrawAntenna(ant.rx, [0.0, 0.0, 1.0], 0.4, ah);
@@ -373,7 +454,7 @@ for frame = frame_start : frame_step : frame_end
     for i = 1 : numel(camera)
         BasisDraw(ah, camera(i).A_ik, 0.1, 2.0);
     end
-    % draw origin
+    % draw originag
     BasisDraw(ah, struct('M', eye(3), 'v', [0; 0; 0]), 0.2, 2.0);
     % format
     grid(ah, 'on');
@@ -464,10 +545,29 @@ for frame = frame_start : frame_step : frame_end
     axis(ah, 'equal');
     axis(ah, [stitch_space.extent(1, :),...
         stitch_space.extent(2, :), stitch_space.extent(3, :)]);
-    %view(ah, [-90, 0]); % slinky
     view(ah, [-30, 15]);
     % notate
     title(ah, sprintf('Stitch Frame %i', frame));
+    xlabel(ah, 'x [m]'); ylabel(ah, 'y [m]'); zlabel(ah, 'z [m]');
+    
+    % coverage figure ----------------------------------------------------------
+    if ~isgraphics(fh(7))
+        fh(7) = MiFigure(7, [], [], [460, 950-poop, 420, 400]);
+    end
+    clf(fh(7));
+    ah = MiAxes(fh(7));
+    % draw image
+    colormap(parula());
+    cover_puppet = PuppetPose(sim_puppet);
+    PuppetDraw(ah, cover_puppet, 'coverage', 'f');
+    % format
+    grid(ah, 'on');
+    axis(ah, 'equal');
+    axis(ah, [stitch_space.extent(1, :),...
+        stitch_space.extent(2, :), stitch_space.extent(3, :)]);
+    view(ah, [-30, 15]);
+    % notate
+    title(ah, sprintf('Coverage %0.3f, Frame %i', ratio, frame));
     xlabel(ah, 'x [m]'); ylabel(ah, 'y [m]'); zlabel(ah, 'z [m]');
     
     % gif output ---------------------------------------------------------------
@@ -477,7 +577,8 @@ for frame = frame_start : frame_step : frame_end
         [gif_base, '_kinect_b.gif'], ...
         [gif_base, '_roi.gif'     ], ...
         [gif_base, '_recon.gif'   ], ...
-        [gif_base, '_stitch.gif'  ]};
+        [gif_base, '_stitch.gif'  ], ...
+        [gif_base, '_cover.gif'   ]};
     
     for i = 1 : numel(fh)
         if frame == frame_start

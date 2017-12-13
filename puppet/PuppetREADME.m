@@ -101,6 +101,9 @@ title(ah, 'Refine');
 % draw
 % [gh, ah] = PuppetDraw(ah, puppet, name, mask, alpha) % draw puppet to an axis
 
+% analysis
+% [puppet, ratio] = PuppetCoverage(puppet, image, space, limit) % map coverage
+
 
 % global variables ============================================================%
 
