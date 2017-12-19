@@ -32,7 +32,6 @@ function [ah] = DarkAxes(fh, position, color)
     
     % format
     grid(ah,'on');
-    axis(ah, 'equal', 'tight');
     
     % main color
     if ~exist('color', 'var') || isempty(color)
