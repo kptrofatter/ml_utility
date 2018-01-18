@@ -95,6 +95,14 @@ function [h] = Cimage(ah, x, y, z, type, base, range, phase)
         % log of modular surface
         h = surf(x, y, Zlog.', img, 'EdgeColor', 'none');
         
+    case 'real'
+        % real
+        h = surf(x, y, real(z.'), img, 'EdgeColor', 'none');
+        
+    case 'imag'
+        % real
+        h = surf(x, y, imag(z.'), img, 'EdgeColor', 'none');
+        
     end
     
     % draw end

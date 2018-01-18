@@ -30,7 +30,7 @@
 %   [1,?] char    |   .name     | shape key name
 %   [3,v] double  |   .vertices | shape key vertex data (w.r.t. puppet)
 %   [1,?] ???     |   .weight   | shape key weight (double, function)
-%   [1,v] double  |  .vertices  | mesh evaluated vertices
+%   [3,v] double  |  .vertices  | mesh evaluated vertices
 %   [3,f] double  |  .faces     | mesh face vertex indices (triangulated)
 %   [1,f] double  |  .materials | mesh face material indices
 %   [1,1] struct  |  .duke      | mesh custom pervertex properties
