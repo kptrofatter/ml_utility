@@ -53,10 +53,11 @@ function [folder] = Folders(home, project, study, trial)
     end
     
     % home
+    home = fullfile(home);
     if home(end) == delimiter
-        folder.home = [fullfile(home), delimiter];
-    else
         folder.home = fullfile(home);
+    else
+        folder.home = [fullfile(home), delimiter];
     end
     
     % code
