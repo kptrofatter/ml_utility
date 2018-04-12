@@ -31,7 +31,7 @@ function [paths] = FileList(folder)
     npaths = numel(d);
     paths = cell(1, npaths);
     for i = 1 : npaths
-        paths{i} = [d(i).folder, '\', d(i).name];
+        paths{i} = fullfile(folder, d(i).name);
     end
 
 end

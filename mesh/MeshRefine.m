@@ -158,7 +158,8 @@ function  [index] = Search(iface, iedge, topology, divides)
 end
 
 
-function [refine, divides, dmax] = DivideEdges(refine, faces, fmap, delta)
+function [refine, ivertex, divides, dmax] = ...
+    DivideEdges(refine, ivertex, faces, fmap, delta)
     
     % helper constant
     itable = [2, 3, 1];
@@ -216,8 +217,8 @@ function [refine, divides, dmax] = DivideEdges(refine, faces, fmap, delta)
                     i2 = face(itable(j));
                     
                     % add a new vertex
-                    index = refine.ivertex;
-                    refine.ivertex = refine.ivertex + 1;
+                    index = ivertex;
+                    ivertex = ivertex + 1;
                     
                     % refine vertices
                     v1 = refine.verts(:, i1);
@@ -238,7 +239,7 @@ function [refine, divides, dmax] = DivideEdges(refine, faces, fmap, delta)
 end
 
 
-function [refine] = DivideFace(refine, face, divide)
+function [refine, iface] = DivideFace(refine, iface, face, divide)
     
     % get vertex indices
     f1 = face(1);
@@ -249,9 +250,6 @@ function [refine] = DivideFace(refine, face, divide)
     d1 = divide(1);
     d2 = divide(2);
     d3 = divide(3);
-    
-    % get refined face index
-    iface = refine.iface;
     
     % get divided edge pattern
     pattern = divide ~= 0;
@@ -295,9 +293,6 @@ function [refine] = DivideFace(refine, face, divide)
         iface = iface + 1;
     end
     
-    % assign refined face index
-    refine.iface = iface;
-    
 end
 
 
@@ -313,17 +308,18 @@ function [refine, dmax] = Refine(mesh, delta)
     
     % initiate worst case refined vertices
     refine.verts = [verts, zeros(3, nverts)];
-    refine.ivertex = nverts + 1;
+    ivertex = nverts + 1;
     
     % initiate worst case refined faces
     refine.faces = zeros(3, 4 * nfaces);
-    refine.iface = 1;
+    iface = 1;
     
     % map faces to adjacent faces
     fmap = MapFaceTopology(faces, nfaces);
     
     % divide face edges
-    [refine, divides, dmax] = DivideEdges(refine, faces, fmap, delta);
+    [refine, ivertex, divides, dmax] = ...
+        DivideEdges(refine, ivertex, faces, fmap, delta);
     
     % divide faces
     for i = 1 : nfaces
@@ -333,13 +329,11 @@ function [refine, dmax] = Refine(mesh, delta)
         divide = divides(:, i);
         
         % divide face
-        [refine] = DivideFace(refine, face, divide);
+        [refine, iface] = DivideFace(refine, iface, face, divide);
         
     end
     
     % clip refined geometry
-    ivertex = refine.ivertex;
-    iface = refine.iface;
     refine.verts(:, ivertex : end) = [];
     refine.faces(:, iface : end) = [];
     

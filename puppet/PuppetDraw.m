@@ -60,7 +60,8 @@ function [gh, ah] = PuppetDraw(ah, puppet, name, mask, alpha)
         
         % draw text
         r = puppet.A.v;
-        gh.text = text(ah, r(1), r(2), r(3), puppet.name, 'Color', 'r');
+        gh.text = text(...
+            r(1), r(2), r(3), puppet.name, 'Color', 'r', 'Parent', ah);
         
     end
     
