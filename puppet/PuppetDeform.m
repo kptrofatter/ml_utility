@@ -141,7 +141,7 @@ function [x] = Ssd(puppet, vertices, imesh)
     end
     
     % normalize weights
-    w = sum(weights);
+    w = sum(weights, 1);
     w(w == 0.0) = 1.0;
     weights = weights ./ repmat(w, [size(weights, 1), 1]);
     

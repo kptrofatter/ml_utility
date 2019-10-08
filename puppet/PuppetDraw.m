@@ -107,7 +107,7 @@ function [gh, ah] = PuppetDraw(ah, puppet, name, mask, alpha)
                 if isempty(name)
                     
                     % uniform color
-                    C = ones(1, size(f, 2));
+                    C = ones(3, size(f, 2));
                     
                 else
                     

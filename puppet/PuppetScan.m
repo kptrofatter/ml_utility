@@ -163,6 +163,7 @@ function [materials] = ScanMaterials(fid, nmaterials)
         nproperties = ScanNumber(fid, 'properties');
         
         % scan custom properties
+        duke = struct();
         for j = 1 : nproperties
             
             % scan property name-value pair
